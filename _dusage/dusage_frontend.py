@@ -11,10 +11,16 @@ import os
 import colorful as cf
 from tabulate import tabulate
 import click
+from logger import logger
 
-from dusage_backend import quota_using_project, quota_using_account, quota_using_path
+from dusage_backend import (
+    quota_using_project,
+    quota_using_account,
+    quota_using_path,
+    Quota,
+)
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"
 
 
 def _stop_with_error(message):
@@ -85,8 +91,8 @@ def dont_colorize(text, color):
 @click.option(
     "-u", "--user", help=f"The username to check (default: {getpass.getuser()})."
 )
-@click.option("-p", "--project", help=f"The allocation project.")
-@click.option("-d", "--directory", help=f"The directory/path to check.")
+@click.option("-p", "--project", help="The allocation project.")
+@click.option("-d", "--directory", help="The directory/path to check.")
 @click.option(
     "--no-colors",
     is_flag=True,
@@ -123,8 +129,8 @@ def main(user, project, directory, no_colors):
             quota_info = quota_using_project(config_file, hostname, project)
         else:
             quota_info = quota_using_account(config_file, hostname, user)
-    except ValueError:
-        _stop_with_error("not enough permission to access this information")
+    except ValueError as e:
+        _stop_with_error(f"{e}")
 
     headers = [
         "path",
@@ -140,16 +146,16 @@ def main(user, project, directory, no_colors):
     table = []
 
     for k, v in quota_info.items():
-        color_space = color_by_ratio(v["space_used_bytes"], v["space_soft_limit_bytes"])
-        color_inodes = color_by_ratio(v["inodes_used"], v["inodes_soft_limit"])
+        color_space = color_by_ratio(v.space_used_bytes, v.space_soft_limit_bytes)
+        color_inodes = color_by_ratio(v.inodes_used, v.inodes_soft_limit)
         l = [
             k,
-            colorize(bytes_to_human(v["space_used_bytes"]), color_space),
-            bytes_to_human(v["space_soft_limit_bytes"]),
-            bytes_to_human(v["space_hard_limit_bytes"]),
-            colorize(number_grouped(v["inodes_used"]), color_inodes),
-            number_grouped(v["inodes_soft_limit"]),
-            number_grouped(v["inodes_hard_limit"]),
+            colorize(bytes_to_human(v.space_used_bytes), color_space),
+            bytes_to_human(v.space_soft_limit_bytes),
+            bytes_to_human(v.space_hard_limit_bytes),
+            colorize(number_grouped(v.inodes_used), color_inodes),
+            number_grouped(v.inodes_soft_limit),
+            number_grouped(v.inodes_hard_limit),
         ]
         table.append(l)
 
